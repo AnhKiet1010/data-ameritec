@@ -1,0 +1,23 @@
+{
+  "name": "ducthanh-website",
+  "version": "1.0.0",
+  "description": "just a demo",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon -L ./index.js",
+    "start": "node ./index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "dotenv": "^8.2.0",
+    "ejs": "^3.1.2",
+    "express": "^4.17.1",
+    "mongoose": "^5.9.12"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.3"
+  }
+}
