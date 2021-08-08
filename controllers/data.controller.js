@@ -7,13 +7,14 @@ const Transaction = require("../models/transaction.model");
 const Commission = require("../models/commission.model");
 const Policy = require("../models/policy.model");
 const mongoose = require('mongoose');
-
-const STEP1_NUMBER=9;
-const STEP2_NUMBER=90;
-const STEP3_NUMBER=819;
-const STEP4_NUMBER=7390;
-const STEP5_NUMBER=897216347;
-const STEP6_NUMBER=34721634891746;
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const STEP1_NUMBER = 9;
+const STEP2_NUMBER = 90;
+const STEP3_NUMBER = 819;
+const STEP4_NUMBER = 7390;
+const STEP5_NUMBER = 897216347;
+const STEP6_NUMBER = 34721634891746;
 
 exports.convertUser = async (req, res) => {
   // LOAD ALL USER IN OLD DATA
@@ -23,12 +24,12 @@ exports.convertUser = async (req, res) => {
     let email = info.user_email;
     let name = info.display_name;
     if (!email.includes('@ameritecjsc.com')) {
-      if(email.substr(0,1) == "1" || email.substr(0,1) == "2" || email.substr(0,1) == "3") {
+      if (email.substr(0, 1) == "1" || email.substr(0, 1) == "2" || email.substr(0, 1) == "3") {
         let compareEmail = email.substr(1).trim();
         let repeatEmail = await UserInfo.findOne({ $and: [{ user_email: compareEmail }, { oldid: { $ne: info.oldid } }] }).exec();
         if (!repeatEmail) {
-          if(name.substr(-1) == "1" || name.substr(-1) == "2" || name.substr(-1) == "3") {
-            let compareName = name.substr(0, name.length -1).trim();
+          if (name.substr(-1) == "1" || name.substr(-1) == "2" || name.substr(-1) == "3") {
+            let compareName = name.substr(0, name.length - 1).trim();
             let mainUser = await UserInfo.findOne({ $and: [{ display_name: compareName }, { oldid: { $ne: info.oldid } }] }).exec();
             if (!mainUser) {
               result.push(info);
@@ -38,8 +39,8 @@ exports.convertUser = async (req, res) => {
           }
         }
       } else {
-        if(name.substr(-1) == "1" || name.substr(-1) == "2" || name.substr(-1) == "3") {
-          let compareName = name.substr(0, name.length -1).trim();
+        if (name.substr(-1) == "1" || name.substr(-1) == "2" || name.substr(-1) == "3") {
+          let compareName = name.substr(0, name.length - 1).trim();
           let mainUser = await UserInfo.findOne({ $and: [{ display_name: compareName }, { oldid: { $ne: info.oldid } }] }).exec();
           if (!mainUser) {
             result.push(info);
@@ -70,7 +71,7 @@ const saveUser = async (info) => {
     : listCharacterOfName[0].substr(0, 1);
 
   // OLD ID CHILDS
-  let childs = await UserInfo.find({ display_name: { $regex: '.*' + info.display_name + '.*' }}).exec();
+  let childs = await UserInfo.find({ display_name: { $regex: '.*' + info.display_name + '.*' } }).exec();
   if (childs) {
     var arrIdChild = childs.map((child) => child.oldid);
   }
@@ -168,18 +169,18 @@ const saveUser = async (info) => {
   });
 }
 
-exports.updateNewParentId = async (req,res) => {
+exports.updateNewParentId = async (req, res) => {
 
   var listUser = await User.find().limit().exec();
 
   for (let user of listUser) {
-      let parent = await User.findOne({old_id_childs: {$in: [user.parentOldId]}}).exec();
+    let parent = await User.findOne({ old_id_childs: { $in: [user.parentOldId] } }).exec();
 
-      if(parent) {
-        await User.findOneAndUpdate({_id: user._id}, {parentId: parent._id}).exec();
-      } else {
-        await User.findOneAndUpdate({_id: user._id}, {parentId: "AMERITEC2021"}).exec();
-      }
+    if (parent) {
+      await User.findOneAndUpdate({ _id: user._id }, { parentId: parent._id }).exec();
+    } else {
+      await User.findOneAndUpdate({ _id: user._id }, { parentId: "AMERITEC2021" }).exec();
+    }
   }
 
   // res.send(listUser);
@@ -212,7 +213,7 @@ exports.saveTree = async (req, res) => {
 exports.convertTree = async (req, res) => {
   const list = await User.find().exec();
 
-  for(let user of list) {
+  for (let user of list) {
     let groupNumber = user.groupNumber;
     let parentOldId = user.parentOldId;
 
@@ -225,9 +226,9 @@ exports.convertTree = async (req, res) => {
 }
 
 const insertIdToGroupOfTree = async (id, parentOldId, groupNumber) => {
-  let mainParent = await User.findOne({old_id_childs: {$in: [parentOldId]}}).exec();
+  let mainParent = await User.findOne({ old_id_childs: { $in: [parentOldId] } }).exec();
 
-  if(mainParent) {
+  if (mainParent) {
     var parentTree = await Tree.findOne({ oldid: mainParent.oldid }).exec();
   }
 
@@ -254,7 +255,7 @@ const insertIdToGroupOfTree = async (id, parentOldId, groupNumber) => {
 
 exports.something = async (req, res,) => {
 
-  var listUser = await User.find({oldid: "5948"}).exec();
+  var listUser = await User.find({ oldid: "5948" }).exec();
 
   for (let user of listUser) {
     let amount = 0;
@@ -270,7 +271,7 @@ exports.something = async (req, res,) => {
       point += c * 0.25;
     });
 
-    await User.findOneAndUpdate({_id:  mongoose.Types.ObjectId(user._id)}, {amount: amount, point: point}).exec();
+    await User.findOneAndUpdate({ _id: mongoose.Types.ObjectId(user._id) }, { amount: amount, point: point }).exec();
   };
 
   res.send("Updated Amount + Point");
@@ -341,3 +342,132 @@ const checkLevel = async (id) => {
   }
   return 0;
 }
+
+exports.createUserManual = async (req, res,) => {
+  const {
+    full_name,
+    email,
+    password,
+    confirm_password,
+    oldid,
+    phone,
+    parentOldId,
+    parentId,
+    groupNumber,
+    created_time,
+    id_code,
+    id_time,
+    issued_by,
+    bank_account,
+    bank,
+    bank_name,
+    tax_code,
+    birthday,
+    expired,
+    cmndMT,
+    cmndMS,
+    buy_package,
+    gender,
+  } = req.body;
+  if (password != confirm_password) {
+    res.json({
+      status: 204,
+      message:
+        "Password và Confirm Password không trùng khớp!",
+      errors: [],
+    });
+  }
+  let userOld = await User.find({ $or: [{ email: email }, { oldid: oldid }] }).exec();
+  if (userOld.length > 0) {
+    console.log(userOld);
+    res.json({
+      status: 204,
+      message:
+        "email hoặc oldid đã tồn tại!",
+      errors: [],
+    });
+    return res;
+  }
+  bcrypt.genSalt(saltRounds, function (err, salt) {
+    bcrypt.hash(password, salt, async function (err, hash) {
+
+      // --------------- CREATE AVATAR -------------------
+      const listCharacterOfName = full_name.split(" ");
+      const avatarKey = `${listCharacterOfName[listCharacterOfName.length - 2]}+${listCharacterOfName[listCharacterOfName.length - 1]}`;
+
+
+      // --------------- SAVE USER -------------------
+      const user = new User({
+        full_name,
+        email,
+        password: hash,
+        avatar: `https://ui-avatars.com/api/?name=${avatarKey}&background=random`,
+        oldid,
+        birthday,
+        parentOldId,
+        parentId,
+        phone,
+        groupNumber,
+        created_time,
+        id_code,
+        id_time,
+        issued_by,
+        bank_account,
+        bank,
+        bank_name,
+        tax_code,
+        expired,
+        cmndMT,
+        cmndMS,
+        buy_package,
+        gender,
+      });
+      user.save(function (err) {
+        if (err) {
+          console.log(err);
+          res.json({
+            status: 204,
+            message:
+              "Save user không thành công!",
+            errors: [],
+          });
+          return res;
+        }
+        else {
+          const tree = new Tree({
+            oldid,
+            parent: user._id,
+            buy_package,
+            group1: [],
+            group2: [],
+            group3: [],
+          });
+          tree.save(function (err) {
+            if (err) {
+              console.log(err);
+              res.json({
+                status: 204,
+                message:
+                  "Save tree của user không thành công!",
+                errors: [],
+              });
+              return res;
+            }
+            else {
+              res.json({
+                status: 200,
+                message: user,
+                errors: [],
+              });
+              return res;
+            }
+          });
+        }
+      });
+    });
+  });
+};
+
+// exports.deleteUserManual = async (req, res,) => {
+
+// }

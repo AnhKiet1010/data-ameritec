@@ -4,7 +4,8 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema(
   {
     old_id_childs: {
-      type: Array
+      type: Array,
+      default: []
     },
     oldid: {
       type: String,
@@ -133,7 +134,7 @@ const userSchema = new mongoose.Schema(
     changeDataBy: {
       type: String,
       default: "Not change"
-    }
+    },
   }
 );
 
