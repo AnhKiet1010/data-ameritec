@@ -135,6 +135,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "Not change"
     },
+    isClone: {
+      type: Boolean,
+      default: false
+    },
   }
 );
 

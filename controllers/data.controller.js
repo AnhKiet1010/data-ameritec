@@ -376,6 +376,7 @@ exports.createUserManual = async (req, res,) => {
         "Password và Confirm Password không trùng khớp!",
       errors: [],
     });
+    return res;
   }
   let userOld = await User.find({ $or: [{ email: email }, { oldid: oldid }] }).exec();
   if (userOld.length > 0) {
@@ -388,7 +389,7 @@ exports.createUserManual = async (req, res,) => {
     });
     return res;
   }
-  bcrypt.genSalt(saltRounds, function (err, salt) {
+  bcrypt.genSalt(saltRounds, async function (err, salt) {
     bcrypt.hash(password, salt, async function (err, hash) {
 
       // --------------- CREATE AVATAR -------------------
@@ -422,7 +423,7 @@ exports.createUserManual = async (req, res,) => {
         buy_package,
         gender,
       });
-      user.save(function (err) {
+      user.save(async function (err) {
         if (err) {
           console.log(err);
           res.json({
@@ -442,7 +443,7 @@ exports.createUserManual = async (req, res,) => {
             group2: [],
             group3: [],
           });
-          tree.save(function (err) {
+          await tree.save(async function (err) {
             if (err) {
               console.log(err);
               res.json({
@@ -462,12 +463,131 @@ exports.createUserManual = async (req, res,) => {
               return res;
             }
           });
+          if (user.buy_package == "3") {
+            await createCloneBuyPackage3(user);
+          }
         }
       });
     });
   });
 };
 
-// exports.deleteUserManual = async (req, res,) => {
+exports.deleteUserManual = async (req, res) => {
+  const {
+    id
+  } = req.body;
+  var user = await User.findOne({ _id: id }).exec();
+  if (user.buy_package == "3") {
+    var users_clone = await User.find({ email: user.email }).exec();
+    for (var user_clone of users_clone) {
+      await deleteUserAndTree(user_clone._id);
+    }
+  }
+  User.updateMany({ parentId: id }, { parentId: "" }).exec();
+  var trees = await Tree.find({}).exec();
+  for (var element of trees) {
+    if (element.group1.includes(id)) {
+      var group1 = [...element.group1];
+      const index = group1.indexOf(id);
+      if (index > -1) {
+        group1.splice(index, 1);
+      }
+      element.group1 = group1;
+    }
+    if (element.group2.includes(id)) {
+      var group2 = [...element.group2];
+      const index = group2.indexOf(id);
+      if (index > -1) {
+        group2.splice(index, 1);
+      }
+      element.group2 = group2;
+    }
+    if (element.group3.includes(id)) {
+      var group3 = [...element.group3];
+      const index = group3.indexOf(id);
+      if (index > -1) {
+        group3.splice(index, 1);
+      }
+      element.group3 = group3;
+    }
+    await element.save()
+  }
+  await deleteUserAndTree(id);
+  res.json({
+    status: 204,
+    message:
+      "Success",
+    errors: [],
+  });
+  return res;
+}
+const deleteUserAndTree = async (id) => {
+  await User.deleteOne({ _id: id }).exec();
+  await Tree.deleteOne({ parent: id }).exec();
+}
+const createCloneBuyPackage3 = async (user) => {
+  var tree_parent = await Tree.findOne({ $or: [{ parent: user._id }, { oldid: user.oldid }] }).exec();
+  var group1 = [];
+  var group2 = [];
+  var group3 = [];
+  for (var i = 1; i <= 9; i++) {
+    const user_new = new User({
+      full_name: user.full_name + " " + i,
+      email: user.email,
+      password: user.password,
+      avatar: user.avatar,
+      oldid: user.oldid,
+      birthday: user.birthday,
+      parentOldId: user.parentOldId,
+      parentId: user._id,
+      phone: user.phone,
+      groupNumber: user.groupNumber,
+      created_time: user.created_time,
+      id_code: user.id_code,
+      id_time: user.id_time,
+      issued_by: user.issued_by,
+      bank_account: user.bank_account,
+      bank: user.bank,
+      bank_name: user.bank_name,
+      tax_code: user.tax_code,
+      expired: user.expired,
+      cmndMT: user.cmndMT,
+      cmndMS: user.cmndMS,
+      buy_package: "2",
+      gender: user.gender,
+      isClone: true
+    });
+    await user_new.save();
+    const tree = new Tree({
+      oldid: user_new.oldid,
+      parent: user_new._id,
+      buy_package: 3,
+      group1: [],
+      group2: [],
+      group3: [],
+    });
+    await tree.save();
+    switch (i) {
+      case 1:
+      case 2:
+      case 3:
+        group1.push(user_new._id.toString());
+        break;
+      case 4:
+      case 5:
+      case 6:
+        group2.push(user_new._id.toString());
+        break;
+      case 7:
+      case 8:
+      case 9:
+        group3.push(user_new._id.toString());
+        break;
+    }
 
-// }
+  }
+  tree_parent.group1 = group1;
+  tree_parent.group2 = group2;
+  tree_parent.group3 = group3;
+  await tree_parent.save();
+}
